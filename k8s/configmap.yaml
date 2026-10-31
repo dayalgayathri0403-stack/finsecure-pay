@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: finsecure-pay-config
+data:
+  SERVER_PORT: "8080"
+  APP_NAME: "FinSecure Pay"
+  APP_ENVIRONMENT: "production"
