@@ -3,14 +3,13 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = 'gi4gi/finsecure-pay'
-        AWS_REGION  = 'ap-south-1'
+        AWS_REGION = 'ap-south-1'
         EKS_CLUSTER = 'finsecure-pay-eks'
         K8S_DEPLOYMENT = 'finsecure-pay'
         CONTAINER_NAME = 'finsecure-pay'
     }
 
     stages {
-
         stage('Checkout') {
             steps {
                 checkout scm
@@ -38,7 +37,14 @@ pipeline {
 
         stage('Security Checks') {
             steps {
-                bat 'mvnw.cmd org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=7'
+                withCredentials([
+                    string(
+                        credentialsId: 'nvd-api-key',
+                        variable: 'NVD_API_KEY'
+                    )
+                ]) {
+                    bat '@mvnw.cmd org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=7 -DnvdApiKey=%NVD_API_KEY%'
+                }
             }
         }
 
@@ -58,7 +64,7 @@ pipeline {
                         passwordVariable: 'DOCKER_PASSWORD'
                     )
                 ]) {
-                    bat 'echo %DOCKER_PASSWORD%| docker login --username %DOCKER_USERNAME% --password-stdin'
+                    bat '@echo %DOCKER_PASSWORD%| docker login --username %DOCKER_USERNAME% --password-stdin'
                     bat 'docker push %DOCKER_IMAGE%:%BUILD_NUMBER%'
                     bat 'docker push %DOCKER_IMAGE%:latest'
                     bat 'docker logout'
@@ -89,9 +95,11 @@ pipeline {
         success {
             echo 'FinSecure Pay CI/CD pipeline completed successfully.'
         }
+
         failure {
             echo 'Pipeline failed. Check the stage logs before proceeding.'
         }
+
         always {
             echo 'Pipeline execution finished.'
         }
