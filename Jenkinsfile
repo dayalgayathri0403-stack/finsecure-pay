@@ -33,7 +33,7 @@ pipeline {
         stage('Static Code Analysis - SpotBugs') {
             steps {
                 echo 'Running SpotBugs static code analysis...'
-                bat 'mvnw.cmd spotbugs:check'
+                bat 'mvnw.cmd com.github.spotbugs:spotbugs-maven-plugin:4.9.7.0:check'
                 echo 'SpotBugs analysis passed.'
             }
         }
@@ -128,3 +128,4 @@ pipeline {
         }
     }
 }
+
