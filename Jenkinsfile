@@ -66,17 +66,6 @@ pipeline {
             }
         }
 
-        // TEMPORARY TEST: This stage should fail intentionally.
-        stage('Security Gate Validation - Test') {
-            steps {
-                echo 'Testing security gate with a deliberately vulnerable image...'
-
-                bat '"C:/Tools/Trivy/trivy.exe" image --scanners vuln --severity HIGH,CRITICAL --exit-code 1 alpine:3.10'
-
-                echo 'Security gate validation passed.'
-            }
-        }
-
         stage('Push to Docker Hub') {
             steps {
                 withCredentials([
