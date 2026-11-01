@@ -30,6 +30,14 @@ pipeline {
             }
         }
 
+        stage('Static Code Analysis - SpotBugs') {
+            steps {
+                echo 'Running SpotBugs static code analysis...'
+                bat 'mvnw.cmd spotbugs:check'
+                echo 'SpotBugs analysis passed.'
+            }
+        }
+
         stage('Package') {
             steps {
                 bat 'mvnw.cmd package -DskipTests'
