@@ -11,6 +11,7 @@ pipeline {
 
     stages {
 
+        // 1. Checkout source code
         stage('Checkout') {
             steps {
                 checkout scm
@@ -18,30 +19,35 @@ pipeline {
             }
         }
 
+        // 2. Clean previous build files
         stage('Build') {
             steps {
                 bat 'mvnw.cmd clean'
             }
         }
 
+        // 3. Execute JUnit tests
         stage('Test') {
             steps {
                 bat 'mvnw.cmd test'
             }
         }
 
+        // 4. Package Spring Boot application
         stage('Package') {
             steps {
                 bat 'mvnw.cmd package -DskipTests'
             }
         }
 
+        // 5. Scan project dependencies
         stage('Dependency Security Check') {
             steps {
                 bat 'mvnw.cmd org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=7'
             }
         }
 
+        // 6. Build Docker image
         stage('Container Build') {
             steps {
                 bat 'docker build -t %DOCKER_IMAGE%:%BUILD_NUMBER% .'
@@ -49,16 +55,18 @@ pipeline {
             }
         }
 
+        // 7. Scan Docker image using Trivy
         stage('Trivy Security Scan') {
             steps {
                 echo 'Scanning Docker image for HIGH and CRITICAL vulnerabilities...'
 
-                bat 'trivy image --scanners vuln --severity HIGH,CRITICAL --exit-code 1 %DOCKER_IMAGE%:%BUILD_NUMBER%'
+                bat '"C:/Tools/Trivy/trivy.exe" image --scanners vuln --severity HIGH,CRITICAL --exit-code 1 %DOCKER_IMAGE%:%BUILD_NUMBER%'
 
-                echo 'Trivy security scan passed. No HIGH or CRITICAL vulnerabilities detected.'
+                echo 'Trivy security scan passed.'
             }
         }
 
+        // 8. Push Docker image securely
         stage('Push to Docker Hub') {
             steps {
                 withCredentials([
@@ -78,6 +86,7 @@ pipeline {
             }
         }
 
+        // 9. Deploy application to AWS EKS
         stage('Deploy to EKS') {
             steps {
                 withCredentials([
