@@ -38,7 +38,14 @@ pipeline {
 
         stage('Dependency Security Check') {
             steps {
-                bat 'mvnw.cmd org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=7'
+                withCredentials([
+                    string(
+                        credentialsId: 'nvd-api-key',
+                        variable: 'NVD_API_KEY'
+                    )
+                ]) {
+                    bat 'mvnw.cmd org.owasp:dependency-check-maven:check -DnvdApiKeyEnvironmentVariable=NVD_API_KEY -DfailBuildOnCVSS=7'
+                }
             }
         }
 
@@ -80,8 +87,10 @@ pipeline {
                     )
                 ]) {
                     bat 'echo %DOCKER_PASSWORD%| docker login --username %DOCKER_USERNAME% --password-stdin'
+
                     bat 'docker push %DOCKER_IMAGE%:%BUILD_NUMBER%'
                     bat 'docker push %DOCKER_IMAGE%:latest'
+
                     bat 'docker logout'
                 }
             }
@@ -98,7 +107,9 @@ pipeline {
                 ]) {
                     bat '''
                     aws eks update-kubeconfig --region %AWS_REGION% --name %EKS_CLUSTER%
+
                     kubectl set image deployment/%K8S_DEPLOYMENT% %CONTAINER_NAME%=%DOCKER_IMAGE%:%BUILD_NUMBER%
+
                     kubectl rollout status deployment/%K8S_DEPLOYMENT% --timeout=180s
                     '''
                 }
