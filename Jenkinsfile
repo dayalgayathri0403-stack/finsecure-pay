@@ -1,3 +1,4 @@
+
 pipeline {
     agent any
 
@@ -10,6 +11,7 @@ pipeline {
     }
 
     stages {
+
         stage('Checkout') {
             steps {
                 checkout scm
@@ -35,16 +37,9 @@ pipeline {
             }
         }
 
-        stage('Security Checks') {
+        stage('Dependency Security Check') {
             steps {
-                withCredentials([
-                    string(
-                        credentialsId: 'nvd-api-key',
-                        variable: 'NVD_API_KEY'
-                    )
-                ]) {
-                    bat '@mvnw.cmd org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=7 -DnvdApiKey=%NVD_API_KEY%'
-                }
+                bat 'mvnw.cmd org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=7'
             }
         }
 
@@ -52,6 +47,16 @@ pipeline {
             steps {
                 bat 'docker build -t %DOCKER_IMAGE%:%BUILD_NUMBER% .'
                 bat 'docker tag %DOCKER_IMAGE%:%BUILD_NUMBER% %DOCKER_IMAGE%:latest'
+            }
+        }
+
+        stage('Trivy Security Scan') {
+            steps {
+                echo 'Scanning Docker image for HIGH and CRITICAL vulnerabilities...'
+
+                bat 'trivy image --scanners vuln --severity HIGH,CRITICAL --exit-code 1 %DOCKER_IMAGE%:%BUILD_NUMBER%'
+
+                echo 'Trivy security scan passed. No HIGH or CRITICAL vulnerabilities detected.'
             }
         }
 
@@ -64,9 +69,11 @@ pipeline {
                         passwordVariable: 'DOCKER_PASSWORD'
                     )
                 ]) {
-                    bat '@echo %DOCKER_PASSWORD%| docker login --username %DOCKER_USERNAME% --password-stdin'
+                    bat 'echo %DOCKER_PASSWORD%| docker login --username %DOCKER_USERNAME% --password-stdin'
+
                     bat 'docker push %DOCKER_IMAGE%:%BUILD_NUMBER%'
                     bat 'docker push %DOCKER_IMAGE%:latest'
+
                     bat 'docker logout'
                 }
             }
@@ -83,7 +90,9 @@ pipeline {
                 ]) {
                     bat '''
                     aws eks update-kubeconfig --region %AWS_REGION% --name %EKS_CLUSTER%
+
                     kubectl set image deployment/%K8S_DEPLOYMENT% %CONTAINER_NAME%=%DOCKER_IMAGE%:%BUILD_NUMBER%
+
                     kubectl rollout status deployment/%K8S_DEPLOYMENT% --timeout=180s
                     '''
                 }
